@@ -1,26 +1,5 @@
 import numpy as np
-import os
-from time import strftime, localtime
-from collections import namedtuple
-import torchvision.transforms as T
-from PIL import Image
-
-
-Transition = namedtuple('Transition',
-                        ('state', 'action', 'next_state', 'reward', 'done'))
-
-resize = T.Compose([T.ToPILImage(),
-                    T.Resize(40, interpolation=Image.CUBIC),
-                    T.ToTensor()])
-
-
-def prepare_model_dir(work_dir):
-    # Create results directory
-    result_path = os.getcwd() + work_dir + '/' + strftime('%b_%d_%H_%M_%S', localtime())
-    os.mkdir(result_path)
-
-    return result_path
-
+import torch
 
 
 def fmt_row(width, row):

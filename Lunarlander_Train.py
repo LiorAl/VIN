@@ -5,10 +5,11 @@ import gym
 import matplotlib
 import matplotlib.pyplot as plt
 import torch
+from xvfbwrapper import Xvfb
 
 from dataset.dataset import *
 from utils import *
-from model import *
+from LunarLanderModel import *
 
 
 
@@ -21,24 +22,15 @@ plt.ion()
 
 # if gpu is to be used
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+run_on_server = True
 
-# if gpu is to be used
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def get_screen(env):
-    screen = env.render(mode='rgb_array').transpose(
-        (2, 0, 1))  # transpose into torch order (CHW)
 
-    # Convert to float, rescare, convert to torch tensor
-    # (this doesn't require a copy)
-    screen = np.ascontiguousarray(screen, dtype=np.float32) / 255
-    screen = torch.from_numpy(screen)
-    # Resize, and add a batch dimension (BCHW)
-    return resize(screen).unsqueeze(0).to(device)
+class Configs:
+    BATCH_SIZE = 32                 # Batch size
+    LEARNING_RATE = 0.005           # Learning rate
+    EPOCHS = 30                     # Number of epochs to train
 
-class Constants:
-
-    BATCH_SIZE = 32
     GAMMA = 0.999
     EPS_START = 1
     EPS_END = 0.05
@@ -47,8 +39,7 @@ class Constants:
     TARGET_UPDATE = 500
     MAX_DURATION = 2000
     REPLAY_BUFFER = 100000
-    LEARNING_RATE = 0.00025
-    EPS_RMSPROP = 0.01
+    EPS_RMSPROP = 1e-6
     ALPHA_RMSPROP = 0.95
     PURE_EXPLORATION_STEPS = 50000
     STOP_EXPLORATION_STEPS = 250000
@@ -56,18 +47,20 @@ class Constants:
     EPISODES_MEAN_REWARD = 10
     STOP_CONDITION = -100
 
+    K = 10                          # Number of Value Iterations
+    Input_Channels = 2              # Number of channels in input layer
+    First_Hidden_Channels = 150     # Number of channels in first hidden layer
+    Q_Channels = 10                 # Number of channels in q layer (~actions) in VI-module
+
+
 
 
 def train(net, trainloader, config, criterion, optimizer, use_GPU):
-    env = gym.make('LunarLander-v2')
+    print_header()
     num_actions = env.action_space.n
     env.reset()
-    current_screen = get_screen(env)
 
 
-
-
-    print_header()
     for epoch in range(config.epochs):  # Loop over dataset multiple times
         avg_error, avg_loss, num_batches = 0.0, 0.0, 0.0
         start_time = time.time()
@@ -134,51 +127,18 @@ def test(net, testloader, config):
 
 
 if __name__ == '__main__':
-    # Automatic swith of GPU mode if available
-    use_GPU = torch.cuda.is_available()
-    # Parsing training parameters
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--datafile',
-        type=str,
-        default='dataset/gridworld_8x8.npz',
-        help='Path to data file')
-    parser.add_argument('--imsize', type=int, default=8, help='Size of image')
-    parser.add_argument(
-        '--lr',
-        type=float,
-        default=0.005,
-        help='Learning rate, [0.01, 0.005, 0.002, 0.001]')
-    parser.add_argument(
-        '--epochs', type=int, default=30, help='Number of epochs to train')
-    parser.add_argument(
-        '--k', type=int, default=10, help='Number of Value Iterations')
-    parser.add_argument(
-        '--l_i', type=int, default=2, help='Number of channels in input layer')
-    parser.add_argument(
-        '--l_h',
-        type=int,
-        default=150,
-        help='Number of channels in first hidden layer')
-    parser.add_argument(
-        '--l_q',
-        type=int,
-        default=10,
-        help='Number of channels in q layer (~actions) in VI-module')
-    parser.add_argument(
-        '--batch_size', type=int, default=128, help='Batch size')
-    config = parser.parse_args()
-    # Get path to save trained model
-    save_path = "trained/vin_{0}x{0}.pth".format(config.imsize)
+    # Prepare results folder
+    save_path = prepare_model_dir('/trained')
+    # Load configs object
+    config = Configs
+    # Init GYM environment
+    env = gym.make('LunarLander-v2')
     # Instantiate a VIN model
-    net = VIN(config)
-    # Use GPU if available
-    if use_GPU:
-        net = net.cuda()
+    net = VIN(config, env.action_space.n, device)
     # Loss
     criterion = nn.CrossEntropyLoss()
     # Optimizer
-    optimizer = optim.RMSprop(net.parameters(), lr=config.lr, eps=1e-6)
+    optimizer = optim.RMSprop(net.parameters(), lr=config.LEARNING_RATE, eps=config.EPS_RMSPROP)
     # Dataset transformer: torchvision.transforms
     transform = None
     # Define Dataset
