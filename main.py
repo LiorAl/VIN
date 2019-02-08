@@ -1,4 +1,4 @@
-import copy
+from copy import deepcopy
 import glob
 import os
 import time
@@ -20,9 +20,8 @@ from a2c_ppo_acktr.utils import get_vec_normalize, update_linear_schedule
 from a2c_ppo_acktr.visualize import visdom_plot
 
 from LunarLanderModel import VIN, get_VIN_kwargs
-from utils import resize
 
-
+from pylab import *
 
 
 args = get_args()
@@ -58,6 +57,7 @@ except OSError:
         os.remove(f)
 
 
+
 def main():
     torch.set_num_threads(1)
     device = torch.device("cuda:0" if args.cuda else "cpu")
@@ -68,7 +68,7 @@ def main():
         win = None
 
     envs = make_vec_envs(args.env_name, args.seed, args.num_processes,
-                        args.gamma, args.log_dir, args.add_timestep, device, resize, False)
+                        args.gamma, args.log_dir, args.add_timestep, device, False)
 
     VIN_kwargs = get_VIN_kwargs(args.env_name)
 
@@ -157,7 +157,7 @@ def main():
             # A really ugly way to save a model to CPU
             save_model = actor_critic
             if args.cuda:
-                save_model = copy.deepcopy(actor_critic).cpu()
+                save_model = deepcopy(actor_critic).cpu()
 
             save_model = [save_model,
                           getattr(get_vec_normalize(envs), 'ob_rms', None)]
@@ -168,7 +168,8 @@ def main():
 
         if j % args.log_interval == 0 and len(episode_rewards) > 1:
             end = time.time()
-            print("Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}\n".
+            print("Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.1f}/{:.1f},"
+                  " min/max reward {:.1f}/{:.1f}\n Entropy: {:.4f}, Value loss: {:.4f}, Action Loss: {:.4f}".
                 format(j, total_num_steps,
                        int(total_num_steps / (end - start)),
                        len(episode_rewards),

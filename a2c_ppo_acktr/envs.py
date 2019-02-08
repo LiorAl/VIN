@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from gym.spaces.box import Box
 from PIL import Image
+import torchvision.transforms as T
 
 from baselines import bench
 from baselines.common.atari_wrappers import make_atari, wrap_deepmind
@@ -13,6 +14,10 @@ from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.vec_env.vec_normalize import VecNormalize as VecNormalize_
 
+
+resize = T.Compose([T.ToPILImage(),
+                    T.Resize((40, 60), interpolation=Image.CUBIC),
+                    T.ToTensor()])
 
 try:
     import dm_control2gym
@@ -73,7 +78,7 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets):
     return _thunk
 
 def make_vec_envs(env_name, seed, num_processes, gamma, log_dir, add_timestep,
-                  device, fn_resize, allow_early_resets, num_frame_stack=None):
+                  device, allow_early_resets, num_frame_stack=None):
     envs = [make_env(env_name, seed, i, log_dir, add_timestep, allow_early_resets)
             for i in range(num_processes)]
 
@@ -88,7 +93,7 @@ def make_vec_envs(env_name, seed, num_processes, gamma, log_dir, add_timestep,
         else:
             envs = VecNormalize(envs, gamma=gamma)
 
-    envs = VecPyTorch(envs, device, fn_resize)
+    envs = VecPyTorch(envs, device)
 
     if num_frame_stack is not None:
         envs = VecPyTorchFrameStack(envs, num_frame_stack, device)
@@ -134,11 +139,10 @@ class TransposeImage(gym.ObservationWrapper):
 
 
 class VecPyTorch(VecEnvWrapper):
-    def __init__(self, venv, device, fn_resize):
+    def __init__(self, venv, device):
         """Return only every `skip`-th frame"""
         super(VecPyTorch, self).__init__(venv)
         self.device = device
-        self.fn_resize = fn_resize
         # TODO: Fix data types
 
     def reset(self):
@@ -156,7 +160,7 @@ class VecPyTorch(VecEnvWrapper):
         screen = torch.from_numpy(screen)
         # Resize, and add a batch dimension (BCHW)
 
-        return self.fn_resize(screen).unsqueeze(0).to(self.device)
+        return resize(screen).unsqueeze(0).to(self.device)
 
     def step_async(self, actions):
         actions = actions.squeeze(1).cpu().numpy()
