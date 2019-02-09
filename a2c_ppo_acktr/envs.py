@@ -16,7 +16,7 @@ from baselines.common.vec_env.vec_normalize import VecNormalize as VecNormalize_
 
 
 resize = T.Compose([T.ToPILImage(),
-                    T.Resize((40, 60), interpolation=Image.CUBIC),
+                    T.Resize((80, 120), interpolation=Image.CUBIC),
                     T.ToTensor()])
 
 try:

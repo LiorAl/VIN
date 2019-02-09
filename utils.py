@@ -3,42 +3,35 @@ import os
 from time import strftime, localtime
 from collections import namedtuple
 from PIL import Image
-
+import matplotlib.pylab as plt
 
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward', 'done'))
 
-# class learning_plot:
+
+# class LearningPlot:
+#     accumulate_reward = []
+#     avg_accumulate_reward = []
+#     STD_accumulate_reward = []
 #
-#     tick_fractions = np.array([0.1, 0.2, 0.4, 0.6, 0.8, 1.0])
-#
-#     def __init__(self, folder, game, name, num_steps):
+#     def __init__(self, folder, game):
 #         self.folder = folder
 #         self.fig = plt.figure()
-#         self.num_steps = num_steps
-#
-#         self.ax, = plt.plot([], [], label="{}".format(name))
-#         ticks = self.tick_fractions * num_steps
-#         tick_names = ["{:.0e}".format(tick) for tick in ticks]
-#         plt.xticks(ticks, tick_names)
 #
 #         plt.title(game)
-#         plt.legend(loc=4)
 #         plt.xlabel('Number of Timesteps')
 #         plt.ylabel('Rewards')
-#         plt.xlim(0, num_steps * 1.01)
 #
-#     def update_line(self, new_data):
-#         t = self.ax.get_xdata()
-#         t = np.append(t, np.arange(len(t), len(t) + len(new_data))).astype(int)
-#         self.ax.set_xdata(t)
-#         self.ax.set_ydata(np.append(self.ax.get_ydata(), new_data))
+#     def update_line(self, new_reward):
+#         new_data_length = len(new_reward)
+#         if new_data_length < len(self.accumulate_reward):
+#             recent_values = self.accumulate_reward[-new_data_length:-1]
+#             self.accumulate_reward.append(np.setdiff1d(recent_values, new_reward))
+#         else:
+#             self.accumulate_reward.append(new_reward)
 #
-#         plt.draw()
-#         plt.pause(0.001)  # pause a bit so that plots are updated
 #
-#         fig = plt.figure(2)
-#         fig.clf()
+#         self.fig.clf()
 #         durations_t = np.arange(len(accumulate_reward))
 #         plt.title('Training - Accumulated reward and AVG reward')
 #         plt.xlabel('Episode')
@@ -51,6 +44,20 @@ Transition = namedtuple('Transition',
 #         plt.legend(['Reward', 'Mean reward', 'STD'])
 #
 #         plt.pause(0.001)  # pause a bit so that plots are updated
+#
+#         def plot_durations(accumulate_reward, avg_accumulate_reward, STD_accumulate_reward):
+#             fig = plt.figure(2)
+#             fig.clf()
+#             durations_t = np.arange(len(accumulate_reward))
+#             plt.title('Training - Accumulated reward and AVG reward')
+#             plt.xlabel('Episode')
+#             plt.ylabel('Reward')
+#             plt.plot(durations_t, accumulate_reward, color='r')
+#             plt.plot(durations_t, avg_accumulate_reward, color='b')
+#             plt.fill_between(durations_t, np.array(avg_accumulate_reward) - np.array(STD_accumulate_reward),
+#                              np.array(avg_accumulate_reward) + np.array(STD_accumulate_reward), color='b', alpha=0.2)
+#             plt.tight_layout()
+#             plt.legend(['Reward', 'Mean reward', 'STD'])
 #
 #     def save_fig(self):
 #         self.fig.savefig(self.folder + 'Train_proc.jpg')

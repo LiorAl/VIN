@@ -21,9 +21,6 @@ from a2c_ppo_acktr.visualize import visdom_plot
 
 from LunarLanderModel import VIN, get_VIN_kwargs
 
-from pylab import *
-
-
 args = get_args()
 
 assert args.algo in ['a2c', 'ppo', 'acktr']
@@ -65,7 +62,7 @@ def main():
     if args.vis:
         from visdom import Visdom
         viz = Visdom(port=args.port)
-        win = None
+        win = [None, None]
 
     envs = make_vec_envs(args.env_name, args.seed, args.num_processes,
                         args.gamma, args.log_dir, args.add_timestep, device, False)
@@ -119,7 +116,8 @@ def main():
             # Sample actions
             with torch.no_grad():
                 value, action, action_log_prob, recurrent_hidden_states = actor_critic.act(
-                        rollouts.renders[step],            # rollouts.obs[step],
+                        rollouts.renders[step],
+                        rollouts.obs[step],
                         rollouts.recurrent_hidden_states[step],
                         rollouts.masks[step])
 
@@ -136,7 +134,8 @@ def main():
             rollouts.insert(obs, render, recurrent_hidden_states, action, action_log_prob, value, reward, masks)
 
         with torch.no_grad():
-            next_value = actor_critic.get_value(envs.render(),  #rollouts.obs[-1],
+            next_value = actor_critic.get_value(envs.render(),
+                                                rollouts.obs[-1],
                                                 rollouts.recurrent_hidden_states[-1],
                                                 rollouts.masks[-1]).detach()
 
@@ -225,6 +224,8 @@ def main():
                                   args.algo, args.num_env_steps)
             except IOError:
                 pass
+
+
 
 
 if __name__ == "__main__":

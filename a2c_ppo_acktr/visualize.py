@@ -79,13 +79,13 @@ def load_data(indir, smooth, bin_size):
 
     x, y = np.array(result)[:, 0], np.array(result)[:, 1]
 
-    if smooth == 1:
-        x, y = smooth_reward_curve(x, y)
-
-    if smooth == 2:
-        y = medfilt(y, kernel_size=9)
-
-    x, y = fix_point(x, y, bin_size)
+    # if smooth == 1:
+    #     x, y = smooth_reward_curve(x, y)
+    #
+    # if smooth == 2:
+    #     y = medfilt(y, kernel_size=9)
+    #
+    # x, y = fix_point(x, y, bin_size)
     return [x, y]
 
 
@@ -108,14 +108,34 @@ def visdom_plot(viz, win, folder, game, name, num_steps, bin_size=100, smooth=1)
     if tx is None or ty is None:
         return win
 
+    def smooth(y, box_pts):
+        box = np.ones(box_pts) / box_pts
+        y_smooth = np.convolve(y, box, mode='same')
+        return y_smooth
+
+    def STD_fn(y, box_pts):
+        num_steps = len(y)
+        y = np.concatenate((np.zeros(box_pts - 1), y), axis=0)
+
+
+        return np.std([y[ii: ii + box_pts]
+                      for ii in range(num_steps)], axis=1)
+
+    # Plot reward and mean ######################
     fig = plt.figure()
-    plt.plot(tx, ty, label="{}".format(name))
+    plt.tight_layout()
+    smooth_reward = smooth(ty, 10)
+
+    plt.plot(tx, ty, label="Reward", color='r')
+    plt.plot(tx, smooth_reward, label="Mean Reward", color='b')
+    # plt.fill_between(tx, smooth_reward - std_reward,
+    #                  smooth_reward + std_reward, color='b', alpha=0.2)
 
     tick_fractions = np.array([0.1, 0.2, 0.4, 0.6, 0.8, 1.0])
     ticks = tick_fractions * num_steps
     tick_names = ["{:.0e}".format(tick) for tick in ticks]
-    plt.xticks(ticks, tick_names)
-    plt.xlim(0, num_steps * 1.01)
+    # plt.xticks(ticks, tick_names)
+    plt.xlim(0, tx[-1] * 1.01)
 
     plt.xlabel('Number of Timesteps')
     plt.ylabel('Rewards')
@@ -129,9 +149,38 @@ def visdom_plot(viz, win, folder, game, name, num_steps, bin_size=100, smooth=1)
     image = image.reshape(fig.canvas.get_width_height()[::-1] + (3, ))
     plt.close(fig)
 
+    # plot mean reward and std ##########################
+    fig = plt.figure()
+
+    plt.tight_layout()
+    std_reward = STD_fn(ty, 10)
+
+    plt.plot(tx, smooth_reward, label="Average Reward", color='r')
+    plt.fill_between(tx, smooth_reward - std_reward,
+                     smooth_reward + std_reward, color='b', alpha=0.2)
+
+    plt.xlim(0, tx[-1] * 1.01)
+
+    plt.xlabel('Number of Timesteps')
+    plt.ylabel('Rewards')
+
+    plt.title(game)
+    plt.legend(loc=4)
+    plt.show()
+    plt.draw()
+
+    image_std = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+    image_std = image_std.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    plt.close(fig)
+
+
+
     # Show it in visdom
     image = np.transpose(image, (2, 0, 1))
-    return viz.image(image, win=win)
+    image_std = np.transpose(image_std, (2, 0, 1))
+    win[0] = viz.image(image, win=win[0])
+    win[1] = viz.image(image_std, win=win[1])
+    return win
 
 
 if __name__ == "__main__":

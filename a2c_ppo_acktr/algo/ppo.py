@@ -55,7 +55,7 @@ class PPO():
 
                 # Reshape to do in a single forward pass for all steps
                 values, action_log_probs, dist_entropy = self.actor_critic.evaluate_actions(
-                    render_batch, recurrent_hidden_states_batch,
+                    render_batch, obs_batch, recurrent_hidden_states_batch,
                     masks_batch, actions_batch)
 
                 ratio = torch.exp(action_log_probs - old_action_log_probs_batch)

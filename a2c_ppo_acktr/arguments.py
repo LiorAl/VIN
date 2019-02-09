@@ -73,6 +73,6 @@ def get_args():
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()
 
-    args.imsize = (3, 40, 60) # c, h, w
+    args.imsize = (3, 80, 120) # c, h, w
 
     return args
