@@ -13,7 +13,7 @@ class Flatten(nn.Module):
 
 
 class Policy(nn.Module):
-    def __init__(self, obs_shape, action_space, base=None, base_kwargs=None):
+    def __init__(self, obs_shape, action_space, base=None, base_kwargs=None, viz=None):
         super(Policy, self).__init__()
         if base_kwargs is None:
             base_kwargs = {}
@@ -25,7 +25,7 @@ class Policy(nn.Module):
             else:
                 raise NotImplementedError
 
-        self.base = base(**base_kwargs)
+        self.base = base(viz, **base_kwargs)
 
         if action_space.__class__.__name__ == "Discrete":
             num_outputs = action_space.n

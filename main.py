@@ -17,7 +17,7 @@ from a2c_ppo_acktr.envs import make_vec_envs
 from a2c_ppo_acktr.model import Policy
 from a2c_ppo_acktr.storage import RolloutStorage
 from a2c_ppo_acktr.utils import get_vec_normalize, update_linear_schedule
-from a2c_ppo_acktr.visualize import visdom_plot
+# from a2c_ppo_acktr.visualize import visdom_plot
 
 from LunarLanderModel import VIN, get_VIN_kwargs
 
@@ -70,7 +70,7 @@ def main():
     VIN_kwargs = get_VIN_kwargs(args.env_name)
 
     actor_critic = Policy(envs.observation_space.shape, envs.action_space, base=VIN,
-        base_kwargs=VIN_kwargs)
+        base_kwargs=VIN_kwargs, viz=viz)
     actor_critic.to(device)
 
     if args.algo == 'a2c':

@@ -16,15 +16,15 @@ def get_VIN_kwargs(gym_env):
                   'Input_Channels'        : 3,   # Number of channels in input layer -rgb
                   'First_Hidden_Channels' : (32, 64, 64),  # Number of channels in first hidden layer
                   'Q_Channels'            : env.action_space.n,  # Number of channels in q layer (~actions) in VI-module
-                  'attention'             : 450,
+                  'attention'             : 7200,
                   'num_actions'           : env.action_space.n,
-                  'critic_features'       : 150}
+                  'critic_features'       : 2400}
     env.close()
     return VIN_kwargs
 
 
 class VIN(nn.Module):
-    def __init__(self, num_actions, Input_Channels, First_Hidden_Channels, Q_Channels, K, attention, critic_features):
+    def __init__(self, viz, num_actions, Input_Channels, First_Hidden_Channels, Q_Channels, K, attention, critic_features):
         super(VIN, self).__init__()
         self.l_i = Input_Channels
         self.l_h = First_Hidden_Channels
@@ -34,21 +34,19 @@ class VIN(nn.Module):
         self.attention = attention
         self.critic_features = critic_features
         self._recurrent = False
+        self.viz = viz
 
         # Input CNN filters #####
         self.h1 = nn.Conv2d(self.l_i, self.l_h[0], kernel_size=3, stride=1, padding=1,
                             bias=True)
-        self.maxpool1 = nn.MaxPool2d(2)
         self.bn1 = nn.BatchNorm2d(self.l_h[0])
 
         self.h2 = nn.Conv2d(self.l_h[0], self.l_h[1], kernel_size=3, stride=1, padding=1,
                             bias=True)
-        self.maxpool2 = nn.MaxPool2d(2)
         self.bn2 = nn.BatchNorm2d(self.l_h[1])
 
         self.h3 = nn.Conv2d(self.l_h[1], self.l_h[2], kernel_size=3, stride=1, padding=1,
                             bias=True)
-        self.maxpool3 = nn.MaxPool2d(2)
         self.bn3 = nn.BatchNorm2d(self.l_h[2])
 
         # VI Module #####
@@ -94,9 +92,9 @@ class VIN(nn.Module):
         return self._recurrent
 
     def forward(self, X, obs):
-        h = F.relu(self.bn1(self.maxpool1(self.h1(X))))
-        h = F.relu(self.bn2(self.maxpool2(self.h2(h))))
-        h = F.relu(self.bn3(self.maxpool3(self.h3(h))))
+        h = F.relu(self.bn1(self.h1(X)))
+        h = F.relu(self.bn2(self.h2(h)))
+        h = F.relu(self.bn3(self.h3(h)))
 
         r = self.r(h)
         q = self.q(r)
@@ -126,5 +124,6 @@ class VIN(nn.Module):
         # logits = self.fc(q.view(1, -1))
         v, _ = torch.max(q, dim=1, keepdim=True)
         critic = self.critic_value(v.view(-1, self.critic_features))
+        self.viz.image(v[0,], win='Value')
 
         return critic, q.view(-1, self.attention)
