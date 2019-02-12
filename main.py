@@ -20,7 +20,6 @@ from a2c_ppo_acktr.utils import get_vec_normalize, update_linear_schedule
 from a2c_ppo_acktr.visualize import visdom_plot
 
 from LunarLanderModel import VIN, get_VIN_kwargs
-from xvfbwrapper import Xvfb
 
 args = get_args()
 
@@ -95,8 +94,7 @@ def main():
     obs = envs.reset()
 
     rollouts.obs[0].copy_(obs)
-    with Xvfb() as xvfb:
-        rollouts.renders[0].copy_(envs.render())
+    rollouts.renders[0].copy_(envs.render())
     rollouts.to(device)
 
     episode_rewards = deque(maxlen=10)
@@ -125,8 +123,7 @@ def main():
                         rollouts.masks[step])
 
             # Obser reward and next obs
-            with Xvfb() as xvfb:
-                obs, render, reward, done, infos = envs.step(action)
+            obs, render, reward, done, infos = envs.step(action)
 
             for info in infos:
                 if 'episode' in info.keys():
@@ -226,7 +223,7 @@ def main():
                 # Sometimes monitor doesn't properly flush the outputs
                 with torch.no_grad():
                     value, reward, state = actor_critic.get_vin_state(rollouts.renders[-1], rollouts.obs[-1])
-                win = visdom_plot(viz, win, args.log_dir, args.env_name,
+                win = visdom_plot(viz, win, value, reward, state, args.log_dir, args.env_name,
                                   args.algo, args.num_env_steps)
             except IOError:
                 pass

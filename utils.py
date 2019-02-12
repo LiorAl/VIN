@@ -20,7 +20,7 @@ def get_real_position(position, imsize, window, device):
     H = VIEWPORT_H / SCALE
     helipad_y = H / 4
 
-    pos = position.numpy()
+    pos = position.cpu().numpy()
 
     trans = lambda pos:   [((pos[0] * VIEWPORT_W/SCALE/2) + VIEWPORT_W/SCALE/2) /SCALE * imsize[0],
                            pos[1] * (VIEWPORT_H / SCALE / 2) + (helipad_y + LEG_DOWN / SCALE) / SCALE * imsize[1]]
@@ -33,10 +33,11 @@ def get_real_position(position, imsize, window, device):
     # x_ =  (x * VIEWPORT_W/SCALE/2) + VIEWPORT_W/SCALE/2
     # y_ = y * (VIEWPORT_H/SCALE/2) + (helipad_y+LEG_DOWN/SCALE)
     # y_ = (y - (helipad_y+LEG_DOWN/SCALE)) / (VIEWPORT_H/SCALE/2),
-    p_x = torch.from_numpy(np.apply_along_axis(window_width_fn, -1, position_[:, 0])).to(device)
-    p_y = torch.from_numpy(np.apply_along_axis(window_hieght_fn, -1, position_[:, 1])).to(device)
+    # p_x = torch.from_numpy(np.apply_along_axis(window_width_fn, 0, position_[:, 0])).to(device)
+    # p_y = torch.from_numpy(np.apply_along_axis(window_hieght_fn, -1, position_[:, 1])).to(device)
+    p_x = torch.from_numpy(position_[:, 0]).to(device)
+    p_y = torch.from_numpy(position_[:, 1]).to(device)
     return p_x, p_y
-
 
 # class LearningPlot:
 #     accumulate_reward = []
