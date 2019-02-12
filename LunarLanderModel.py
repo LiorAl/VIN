@@ -7,24 +7,28 @@ import torch.optim as optim
 from torch.autograd import Variable
 from torch.nn.parameter import Parameter
 import gym
+from utils import get_real_position
+
 
 def get_VIN_kwargs(gym_env):
     env = gym.make(gym_env)
 
 
-    VIN_kwargs = {'K'                     : 30,  # Number of Value Iterations
+    VIN_kwargs = {'K'                     : 20,  # Number of Value Iterations
                   'Input_Channels'        : 3,   # Number of channels in input layer -rgb
                   'First_Hidden_Channels' : (32, 64, 64),  # Number of channels in first hidden layer
                   'Q_Channels'            : env.action_space.n,  # Number of channels in q layer (~actions) in VI-module
-                  'attention'             : 7200,
+                  'attention'             : env.action_space.n,
                   'num_actions'           : env.action_space.n,
-                  'critic_features'       : 2400}
+                  'critic_features'       : 2400,
+                  'attention_area_size'   : 1}
     env.close()
     return VIN_kwargs
 
 
 class VIN(nn.Module):
-    def __init__(self, viz, num_actions, Input_Channels, First_Hidden_Channels, Q_Channels, K, attention, critic_features):
+    def __init__(self, num_actions, Input_Channels, First_Hidden_Channels, Q_Channels, K, attention,
+                 critic_features, attention_area_size):
         super(VIN, self).__init__()
         self.l_i = Input_Channels
         self.l_h = First_Hidden_Channels
@@ -34,7 +38,7 @@ class VIN(nn.Module):
         self.attention = attention
         self.critic_features = critic_features
         self._recurrent = False
-        self.viz = viz
+        self.attention_area_size = attention_area_size
 
         # Input CNN filters #####
         self.h1 = nn.Conv2d(self.l_i, self.l_h[0], kernel_size=3, stride=1, padding=1,
@@ -91,6 +95,24 @@ class VIN(nn.Module):
     def is_recurrent(self):
         return self._recurrent
 
+    def get_VI_state(self, X, obs):
+        h = F.relu(self.bn1(self.h1(X)))
+        h = F.relu(self.bn2(self.h2(h)))
+        h = F.relu(self.bn3(self.h3(h)))
+
+        r = self.r(h)
+        q = self.q(r)
+        v, _ = torch.max(q, dim=1, keepdim=True)
+        for i in range(0, self.K - 1):
+            q = F.conv2d(
+                torch.cat([r, v], 1),
+                torch.cat([self.q.weight, self.w], 1),
+                stride=1,
+                padding=2)
+            v, _ = torch.max(q, dim=1, keepdim=True)
+
+        return v, r, X
+
     def forward(self, X, obs):
         h = F.relu(self.bn1(self.h1(X)))
         h = F.relu(self.bn2(self.h2(h)))
@@ -114,16 +136,25 @@ class VIN(nn.Module):
             padding=2)
 
         # slice_s1 = S1.long().expand(config.imsize, 1, config.l_q, q.size(0))
-        # slice_s1 = slice_s1.permute(3, 2, 1, 0)
-        # q_out = q.gather(2, slice_s1).squeeze(2)
-        #
-        # slice_s2 = S2.long().expand(1, config.l_q, q.size(0))
-        # slice_s2 = slice_s2.permute(2, 1, 0)
+        #         # slice_s1 = slice_s1.permute(3, 2, 1, 0)
+        #         # q_out = q.gather(2, slice_s1).squeeze(2)
+        #         #
+        #         # slice_s2 = S2.long().expand(1, config.l_q, q.size(0))
+        #         # slice_s2 = slice_s2.permute(2, 1, 0)
         # q_out = q_out.gather(2, slice_s2).squeeze(2)
 
         # logits = self.fc(q.view(1, -1))
-        v, _ = torch.max(q, dim=1, keepdim=True)
-        critic = self.critic_value(v.view(-1, self.critic_features))
-        self.viz.image(v[0,], win='Value')
+        p_x, p_y = get_real_position(obs[:, :2], v.shape[2:], self.attention_area_size, q.device)
 
-        return critic, q.view(-1, self.attention)
+        slice_s1 = p_y.long().expand(q.shape[3], 1, self.l_q, q.size(0))
+        slice_s1 = slice_s1.permute(3, 2, 1, 0)
+        q_out = q.gather(2, slice_s1).squeeze(2)
+
+        slice_s2 = p_x.long().expand(1, self.l_q, q.size(0))
+        slice_s2 = slice_s2.permute(2, 1, 0)
+        q_out = q_out.gather(2, slice_s2).squeeze(2)
+        v, _ = torch.max(q_out, dim=1, keepdim=True)
+        # critic = self.critic_value(v.view(-1, self.critic_features))
+        critic = v
+
+        return critic, q_out

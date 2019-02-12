@@ -87,11 +87,12 @@ def make_vec_envs(env_name, seed, num_processes, gamma, log_dir, add_timestep,
     else:
         envs = DummyVecEnv(envs)
 
-    if len(envs.observation_space.shape) == 1:
-        if gamma is None:
-            envs = VecNormalize(envs, ret=False)
-        else:
-            envs = VecNormalize(envs, gamma=gamma)
+    # TODO: normolize obsdervation, un comment to return normilization
+    # if len(envs.observation_space.shape) == 1:
+    #     if gamma is None:
+    #         envs = VecNormalize(envs, ret=False)
+    #     else:
+    #         envs = VecNormalize(envs, gamma=gamma)
 
     envs = VecPyTorch(envs, device)
 

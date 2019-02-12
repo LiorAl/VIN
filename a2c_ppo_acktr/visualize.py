@@ -103,7 +103,7 @@ color_defaults = [
 ]
 
 
-def visdom_plot(viz, win, folder, game, name, num_steps, bin_size=100, smooth=1):
+def visdom_plot(viz, win, value, state, reward, folder, game, name, num_steps, bin_size=100, smooth=1):
     tx, ty = load_data(folder, smooth, bin_size)
     if tx is None or ty is None:
         return win
@@ -173,13 +173,36 @@ def visdom_plot(viz, win, folder, game, name, num_steps, bin_size=100, smooth=1)
     image_std = image_std.reshape(fig.canvas.get_width_height()[::-1] + (3,))
     plt.close(fig)
 
+    # plot Value and State for value
+    fig = plt.figure()
+
+    plt.tight_layout()
+
+    ax = plt.subplot(1, 3, 1)
+    ax.imshow(value, extent=[0, 1, 0, 1])
+    ax.title('Value')
+    ax = plt.subplot(1, 3, 2)
+    ax.imshow(reward, extent=[0, 1, 0, 1])
+    ax.title('Reward')
+    ax = plt.subplot(1, 3, 3)
+    ax.imshow(state)
+    ax.title('State')
+    plt.show()
+    plt.draw()
+
+    image_value_state = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+    image_value_state = image_value_state.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    plt.close(fig)
+
 
 
     # Show it in visdom
     image = np.transpose(image, (2, 0, 1))
     image_std = np.transpose(image_std, (2, 0, 1))
+    image_value_state = np.transpose(image_value_state, (2, 0, 1))
     win[0] = viz.image(image, win=win[0])
     win[1] = viz.image(image_std, win=win[1])
+    win[2] = viz.image(image_value_state, win=win[2])
     return win
 
 

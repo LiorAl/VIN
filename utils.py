@@ -4,9 +4,38 @@ from time import strftime, localtime
 from collections import namedtuple
 from PIL import Image
 import matplotlib.pylab as plt
+import torch
 
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward', 'done'))
+
+def get_real_position(position, imsize, window, device):
+    LEG_DOWN = 18
+
+    VIEWPORT_W = 600
+    VIEWPORT_H = 400
+
+    SCALE = 30
+    W = VIEWPORT_W / SCALE
+    H = VIEWPORT_H / SCALE
+    helipad_y = H / 4
+
+    pos = position.numpy()
+
+    trans = lambda pos:   [((pos[0] * VIEWPORT_W/SCALE/2) + VIEWPORT_W/SCALE/2) /SCALE * imsize[0],
+                           pos[1] * (VIEWPORT_H / SCALE / 2) + (helipad_y + LEG_DOWN / SCALE) / SCALE * imsize[1]]
+
+    window_width_fn = lambda center : np.arange(max(0, center - int(window/2)), min(imsize[1], center + int(window/2) + 1))
+    window_hieght_fn = lambda center : np.arange(max(0, center - int(window/2)), min(imsize[0], center + int(window/2) + 1))
+
+    position_ = np.round(np.apply_along_axis(trans, 1, pos)).astype(int)
+    # x_ = (x - VIEWPORT_W/SCALE/2) / (VIEWPORT_W/SCALE/2)
+    # x_ =  (x * VIEWPORT_W/SCALE/2) + VIEWPORT_W/SCALE/2
+    # y_ = y * (VIEWPORT_H/SCALE/2) + (helipad_y+LEG_DOWN/SCALE)
+    # y_ = (y - (helipad_y+LEG_DOWN/SCALE)) / (VIEWPORT_H/SCALE/2),
+    p_x = torch.from_numpy(np.apply_along_axis(window_width_fn, -1, position_[:, 0])).to(device)
+    p_y = torch.from_numpy(np.apply_along_axis(window_hieght_fn, -1, position_[:, 1])).to(device)
+    return p_x, p_y
 
 
 # class LearningPlot:

@@ -17,9 +17,10 @@ from a2c_ppo_acktr.envs import make_vec_envs
 from a2c_ppo_acktr.model import Policy
 from a2c_ppo_acktr.storage import RolloutStorage
 from a2c_ppo_acktr.utils import get_vec_normalize, update_linear_schedule
-# from a2c_ppo_acktr.visualize import visdom_plot
+from a2c_ppo_acktr.visualize import visdom_plot
 
 from LunarLanderModel import VIN, get_VIN_kwargs
+from xvfbwrapper import Xvfb
 
 args = get_args()
 
@@ -62,7 +63,7 @@ def main():
     if args.vis:
         from visdom import Visdom
         viz = Visdom(port=args.port)
-        win = [None, None]
+        win = [None] * 3
 
     envs = make_vec_envs(args.env_name, args.seed, args.num_processes,
                         args.gamma, args.log_dir, args.add_timestep, device, False)
@@ -70,7 +71,7 @@ def main():
     VIN_kwargs = get_VIN_kwargs(args.env_name)
 
     actor_critic = Policy(envs.observation_space.shape, envs.action_space, base=VIN,
-        base_kwargs=VIN_kwargs, viz=viz)
+        base_kwargs=VIN_kwargs)
     actor_critic.to(device)
 
     if args.algo == 'a2c':
@@ -92,8 +93,10 @@ def main():
                         actor_critic.recurrent_hidden_state_size, args.imsize)
 
     obs = envs.reset()
+
     rollouts.obs[0].copy_(obs)
-    rollouts.renders[0].copy_(envs.render())
+    with Xvfb() as xvfb:
+        rollouts.renders[0].copy_(envs.render())
     rollouts.to(device)
 
     episode_rewards = deque(maxlen=10)
@@ -122,7 +125,8 @@ def main():
                         rollouts.masks[step])
 
             # Obser reward and next obs
-            obs, render, reward, done, infos = envs.step(action)
+            with Xvfb() as xvfb:
+                obs, render, reward, done, infos = envs.step(action)
 
             for info in infos:
                 if 'episode' in info.keys():
@@ -134,7 +138,7 @@ def main():
             rollouts.insert(obs, render, recurrent_hidden_states, action, action_log_prob, value, reward, masks)
 
         with torch.no_grad():
-            next_value = actor_critic.get_value(envs.render(),
+            next_value = actor_critic.get_value(rollouts.renders[-1],
                                                 rollouts.obs[-1],
                                                 rollouts.recurrent_hidden_states[-1],
                                                 rollouts.masks[-1]).detach()
@@ -220,6 +224,8 @@ def main():
         if args.vis and j % args.vis_interval == 0:
             try:
                 # Sometimes monitor doesn't properly flush the outputs
+                with torch.no_grad():
+                    value, reward, state = actor_critic.get_vin_state(rollouts.renders[-1], rollouts.obs[-1])
                 win = visdom_plot(viz, win, args.log_dir, args.env_name,
                                   args.algo, args.num_env_steps)
             except IOError:
