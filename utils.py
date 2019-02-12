@@ -5,9 +5,28 @@ from collections import namedtuple
 from PIL import Image
 import matplotlib.pylab as plt
 import torch
+from PIL import Image
+import torchvision.transforms as T
 
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward', 'done'))
+
+def resize_image_list(imgs, imsize, divice):
+    resized_imgs = np.empty((len(imgs), *imsize))
+
+    resize = T.Compose([T.ToPILImage(),
+                        T.Resize(imsize[1:], interpolation=Image.CUBIC),
+                        T.ToTensor()])
+
+    for ii in range(len(imgs)):
+        resized_imgs[ii,] = resize(imgs[ii])
+
+    screen = np.ascontiguousarray(resized_imgs, dtype=np.float32) / 255
+    screen = torch.from_numpy(screen).to(divice)
+    # Resize, and add a batch dimension (BCHW)
+
+    return screen
+
 
 def get_real_position(position, imsize, window, device):
     LEG_DOWN = 18

@@ -20,6 +20,7 @@ from a2c_ppo_acktr.utils import get_vec_normalize, update_linear_schedule
 from a2c_ppo_acktr.visualize import visdom_plot
 
 from LunarLanderModel import VIN, get_VIN_kwargs
+from utils import resize_image_list
 
 args = get_args()
 
@@ -65,7 +66,7 @@ def main():
         win = [None] * 3
 
     envs = make_vec_envs(args.env_name, args.seed, args.num_processes,
-                        args.gamma, args.log_dir, args.add_timestep, device, False)
+                        args.gamma, args.log_dir, args.add_timestep, device, args.imsize, False)
 
     VIN_kwargs = get_VIN_kwargs(args.env_name)
 
@@ -94,7 +95,7 @@ def main():
     obs = envs.reset()
 
     rollouts.obs[0].copy_(obs)
-    rollouts.renders[0].copy_(envs.render())
+    rollouts.renders[0].copy_(resize_image_list(envs.get_images(), args.imsize, device))
     rollouts.to(device)
 
     episode_rewards = deque(maxlen=10)

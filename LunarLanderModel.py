@@ -18,7 +18,7 @@ def get_VIN_kwargs(gym_env):
                   'Input_Channels'        : 3,   # Number of channels in input layer -rgb
                   'First_Hidden_Channels' : (32, 64, 64),  # Number of channels in first hidden layer
                   'Q_Channels'            : env.action_space.n,  # Number of channels in q layer (~actions) in VI-module
-                  'attention'             : env.action_space.n,
+                  'attention'             : 9600,
                   'num_actions'           : env.action_space.n,
                   'critic_features'       : 2400,
                   'attention_area_size'   : 1}
@@ -135,26 +135,19 @@ class VIN(nn.Module):
             stride=1,
             padding=2)
 
-        # slice_s1 = S1.long().expand(config.imsize, 1, config.l_q, q.size(0))
-        #         # slice_s1 = slice_s1.permute(3, 2, 1, 0)
-        #         # q_out = q.gather(2, slice_s1).squeeze(2)
-        #         #
-        #         # slice_s2 = S2.long().expand(1, config.l_q, q.size(0))
-        #         # slice_s2 = slice_s2.permute(2, 1, 0)
-        # q_out = q_out.gather(2, slice_s2).squeeze(2)
 
         # logits = self.fc(q.view(1, -1))
-        p_x, p_y = get_real_position(obs[:, :2], v.shape[2:], self.attention_area_size, q.device)
+        # p_x, p_y = get_real_position(obs[:, :2], v.shape[2:], self.attention_area_size, q.device)
+        #
+        # slice_s1 = p_y.long().expand(q.shape[3], 1, self.l_q, q.size(0))
+        # slice_s1 = slice_s1.permute(3, 2, 1, 0)
+        # q_out = q.gather(2, slice_s1).squeeze(2)
+        #
+        # slice_s2 = p_x.long().expand(1, self.l_q, q.size(0))
+        # slice_s2 = slice_s2.permute(2, 1, 0)
+        # q_out = q_out.gather(2, slice_s2).squeeze(2)
+        # v, _ = torch.max(q_out, dim=1, keepdim=True)
+        critic = self.critic_value(v.view(-1, self.critic_features))
+        # critic = v
 
-        slice_s1 = p_y.long().expand(q.shape[3], 1, self.l_q, q.size(0))
-        slice_s1 = slice_s1.permute(3, 2, 1, 0)
-        q_out = q.gather(2, slice_s1).squeeze(2)
-
-        slice_s2 = p_x.long().expand(1, self.l_q, q.size(0))
-        slice_s2 = slice_s2.permute(2, 1, 0)
-        q_out = q_out.gather(2, slice_s2).squeeze(2)
-        v, _ = torch.max(q_out, dim=1, keepdim=True)
-        # critic = self.critic_value(v.view(-1, self.critic_features))
-        critic = v
-
-        return critic, q_out
+        return critic, q.view(-1, self.attention)
