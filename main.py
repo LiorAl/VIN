@@ -90,12 +90,12 @@ def main():
 
     rollouts = RolloutStorage(args.num_steps, args.num_processes,
                         envs.observation_space.shape, envs.action_space,
-                        actor_critic.recurrent_hidden_state_size, args.imsize)
+                        actor_critic.recurrent_hidden_state_size, args.imsize ,args.state_sequence)
 
     obs = envs.reset()
-
     rollouts.obs[0].copy_(obs)
-    rollouts.renders[0].copy_(resize_image_list(envs.get_images(), args.imsize, device))
+    initial_imgs = resize_image_list(envs.get_images(), args.imsize, device)
+    rollouts.renders[0].copy_(initial_imgs.repeat(1, args.state_sequence, 1, 1))
     rollouts.to(device)
 
     episode_rewards = deque(maxlen=10)
@@ -125,6 +125,7 @@ def main():
 
             # Obser reward and next obs
             obs, render, reward, done, infos = envs.step(action)
+            next_state = torch.cat((rollouts.renders[step][:, 1:, :, :], render), 1)
 
             for info in infos:
                 if 'episode' in info.keys():
@@ -133,7 +134,7 @@ def main():
             # If done then clean the history of observations.
             masks = torch.FloatTensor([[0.0] if done_ else [1.0]
                                        for done_ in done])
-            rollouts.insert(obs, render, recurrent_hidden_states, action, action_log_prob, value, reward, masks)
+            rollouts.insert(obs, next_state, recurrent_hidden_states, action, action_log_prob, value, reward, masks)
 
         with torch.no_grad():
             next_value = actor_critic.get_value(rollouts.renders[-1],

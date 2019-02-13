@@ -12,10 +12,11 @@ Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward', 'done'))
 
 def resize_image_list(imgs, imsize, divice):
-    resized_imgs = np.empty((len(imgs), *imsize))
+    resized_imgs = np.empty((len(imgs), 1, *imsize))
 
     resize = T.Compose([T.ToPILImage(),
-                        T.Resize(imsize[1:], interpolation=Image.CUBIC),
+                        T.Grayscale(),
+                        T.Resize(imsize, interpolation=Image.CUBIC),
                         T.ToTensor()])
 
     for ii in range(len(imgs)):
@@ -51,11 +52,13 @@ def get_real_position(position, imsize, window, device):
     # x_ = (x - VIEWPORT_W/SCALE/2) / (VIEWPORT_W/SCALE/2)
     # x_ =  (x * VIEWPORT_W/SCALE/2) + VIEWPORT_W/SCALE/2
     # y_ = y * (VIEWPORT_H/SCALE/2) + (helipad_y+LEG_DOWN/SCALE)
-    # y_ = (y - (helipad_y+LEG_DOWN/SCALE)) / (VIEWPORT_H/SCALE/2),
-    # p_x = torch.from_numpy(np.apply_along_axis(window_width_fn, 0, position_[:, 0])).to(device)
-    # p_y = torch.from_numpy(np.apply_along_axis(window_hieght_fn, -1, position_[:, 1])).to(device)
-    p_x = torch.from_numpy(position_[:, 0]).to(device)
-    p_y = torch.from_numpy(position_[:, 1]).to(device)
+    # # y_ = (y - (helipad_y+LEG_DOWN/SCALE)) / (VIEWPORT_H/SCALE/2),
+    # p_x = torch.from_numpy(np.apply_along_axis(window_width_fn, 1,
+    #                                            np.expand_dims(position_[:, 0], 1))).to(device)
+    # p_y = torch.from_numpy(np.apply_along_axis(window_hieght_fn, 1,
+    #                                            np.expand_dims(position_[:, 1], 1))).to(device)
+    p_x = torch.from_numpy(position_[:, 0] - int(window/2)).to(device)
+    p_y = torch.from_numpy(position_[:, 1] - int(window/2)).to(device)
     return p_x, p_y
 
 # class LearningPlot:
