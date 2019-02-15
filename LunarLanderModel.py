@@ -14,12 +14,12 @@ def get_VIN_kwargs(gym_env):
     env = gym.make(gym_env)
 
 
-    VIN_kwargs = {'K'                     : 20,  # Number of Value Iterations
+    VIN_kwargs = {'K'                     : 100,  # Number of Value Iterations
                   'Input_Channels'        : 4,   # Number of channels in input layer -rgb
                   'First_Hidden_Channels' : (32, 64, 64),  # Number of channels in first hidden layer
-                  'Q_Channels'            : env.action_space.n,  # Number of channels in q layer (~actions) in VI-module
+                  'Q_Channels'            : 4,  # Number of channels in q layer (~actions) in VI-module
                   'attention'             : 9600,
-                  'num_actions'           : env.action_space.n,
+                  'num_actions'           : 4,
                   'critic_features'       : 2400,
                   'attention_area_size'   : 5}
     env.close()
@@ -69,7 +69,10 @@ class VIN(nn.Module):
             padding=2,
             bias=False)
 
-        self.fc = nn.Linear(in_features=self.attention, out_features=self.num_actions, bias=False)
+        # self.fc = nn.Linear(in_features=self.attention, out_features=10, bias=True)
+        self.fc1 = nn.Linear(in_features=24, out_features=100, bias=True)
+        self.fc2 = nn.Linear(in_features=100, out_features=10, bias=True)
+
         self.w = Parameter(
             torch.zeros(self.l_q, 1, 5, 5), requires_grad=True)
         self.sm = nn.Softmax(dim=1)
@@ -82,7 +85,7 @@ class VIN(nn.Module):
 
     @property
     def output_size(self):
-        return self.attention
+        return 10
 
     @property
     def recurrent_hidden_state_size(self):
@@ -152,6 +155,8 @@ class VIN(nn.Module):
 
         v, _ = torch.max(q, dim=1, keepdim=True)
         critic = self.critic_value(v.view(-1, self.critic_features))
+        # action_preed = F.relu(self.fc(q.view(-1, self.attention)))
+        action_preed = F.relu(self.fc2(F.relu(self.fc1(obs))))
         # critic = v
 
-        return critic, q.view(-1, self.attention)
+        return critic, action_preed

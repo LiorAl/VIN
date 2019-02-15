@@ -121,7 +121,8 @@ def main():
                         rollouts.renders[step],
                         rollouts.obs[step],
                         rollouts.recurrent_hidden_states[step],
-                        rollouts.masks[step])
+                        rollouts.masks[step],
+                        deterministic=False)
 
             # Obser reward and next obs
             obs, render, reward, done, infos = envs.step(action)
