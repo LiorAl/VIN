@@ -79,8 +79,8 @@ class Policy(nn.Module):
         return value, action_log_probs, dist_entropy
 
     def get_vin_state(self, inputs, obs):
-        return self.base.get_VI_state(inputs, obs)
-
+        value, reward, state = self.base.get_VI_state(inputs, obs)
+        return value[0, ], reward[0, ], state[0, ]
 
 class NNBase(nn.Module):
 
