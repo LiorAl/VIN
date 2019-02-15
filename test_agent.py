@@ -17,14 +17,14 @@ import cv2
 # sys.path.append('a2c_ppo_acktr')
 
 def VideoClip(frame_stack):
-    video_name = 'Bipedal.avi'
+    video_name = 'LunarLander.avi'
 
     height, width, ch = 400, 600, 3
 
     video = cv2.VideoWriter(video_name, cv2.VideoWriter_fourcc(*'MJPG'), 80, (width, height))
 
     for ii, image in enumerate(frame_stack):
-        video.write(image)
+        video.write(image[0])
         if ii > 800:
             break
 
@@ -88,7 +88,7 @@ accumulate_reward = []
 frame_stack = []
 GenVideoClip = True
 
-for ii in range(10):
+for ii in range(1):
     obs = env.reset()
     initial_imgs = resize_image_list(env.get_images(), args.imsize, args.device)
     state = initial_imgs.repeat(1, args.state_sequence, 1, 1)
@@ -127,5 +127,5 @@ for ii in range(10):
 if GenVideoClip:
     VideoClip(frame_stack)
 
-print("Average accumulate reward {} STD {}".format(np.mean(accumulate_reward,np.std(accumulate_reward))))
+print("Average accumulate reward {} STD {}".format(np.mean(accumulate_reward), np.std(accumulate_reward)))
 
